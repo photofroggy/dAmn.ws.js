@@ -3,7 +3,7 @@
 // @namespace      botdom.com
 // @description    Make the official client use WebSockets
 // @author         Henry Rapley <photofroggy@gmail.com>
-// @version        0.0.2
+// @version        0.1.3
 // @include        http://chat.deviantart.com/chat/*
 // ==/UserScript==
 
@@ -100,12 +100,26 @@ var dAmnWebSocket = function(  ) {
             switch( cmd.cmd ) {
                 case 'connect':
                     // connect here...
+                    this.clientObj.sock = new WebSocket('ws://chat.openflock.com:3901/chat/ws');
+                    
+                    this.clientObj.sock.onmessage = function( event ) {
+                        dAmn_DoCommand( 'data', unescape(event.data) );
+                    };
+                    
+                    this.clientObj.sock.onclose = function( event ) {
+                        dAmn_DoCommand( 'disconnect' );
+                    };
+                    
                     break;
                 case 'disconnect':
-                    // disconnect here...
+                    if( this.clientObj.sock == null )
+                        break;
+                    this.clientObj.sock.close();
                     break;
                 case 'send':
-                    // Send a packet...
+                    if( this.clientObj.sock == null )
+                        break;
+                    this.clientObj.sock.send(escape(cmd.arg));
                     break;
                 case 'ping':
                     // Send a ping packet...
@@ -129,6 +143,8 @@ var dAmnWebSocket = function(  ) {
             this.begin_ts = d.getTime();
             
             dAmn_Client_PluginArea.innerHTML = '<div id="'+this.objName+'"></div>';
+            dAmn_Plugin.getClientObj();
+            this.clientObj.sock = null;
             
             this.setTimer( 1 );
             // Maybe just do tryAccess and then throw errors based on that?
@@ -170,6 +186,9 @@ var dAmnWebSocket = function(  ) {
         
         }
     }
+    
+    // Replace the init function.
+    window.dAmn_Init = dAmnWS_Init;
 
 
 };
