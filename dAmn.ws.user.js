@@ -3,7 +3,7 @@
 // @namespace      botdom.com
 // @description    Make the official client use WebSockets
 // @author         Henry Rapley <photofroggy@gmail.com>
-// @version        0.2.4
+// @version        0.2.5
 // @include        http://chat.deviantart.com/chat/*
 // ==/UserScript==
 
@@ -38,8 +38,8 @@ var dAmnWebSocket = function(  ) {
                     this.sock = new WebSocket('ws://chat.openflock.com:3901/chat/ws');
                     
                     this.sock.onopen = function( event ) {
-                        dAmn_Plugin.log('WebSocket open');
-                        dAmn_DoCommand( 'connect' );
+                        dAmn_Plugin.log('Proxy open');
+                        dAmn_DoCommand( 'connect', 'dAmn@chat.openflock.com' );
                     };
                     
                     this.sock.onmessage = function( event ) {
@@ -60,6 +60,15 @@ var dAmnWebSocket = function(  ) {
                 case 'send':
                     if( this.sock == null )
                         break;
+                    var p = dAmn_ParsePacket(cmd.arg);
+                    if( p.cmd == 'login' ) {
+                        if( p.param != 'login' ) {
+                            dAmn_Client_Username = p.param;
+                        } else {
+                            dAmn_DoCommand('done');
+                            return;
+                        }
+                    }
                     this.sock.send(encodeURIComponent(cmd.arg).split(' ').join('+'));
                     break;
                 case 'ping':
@@ -131,6 +140,16 @@ var dAmnWebSocket = function(  ) {
         };
         
     }
+    /*
+    var old_login = dAmn_Login;
+    
+    dAmn_Login = function( username, password ) {
+        
+        console.log('>> using', username);
+        dAmn_Client_Username = username;
+        old_login(username, password);
+        
+    };*/
     
     // Hijack the client to connect to a proxy.
     var wsp = new dAmn_WebSocket_Plugin;
