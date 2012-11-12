@@ -140,16 +140,6 @@ var dAmnWebSocket = function(  ) {
         };
         
     }
-    /*
-    var old_login = dAmn_Login;
-    
-    dAmn_Login = function( username, password ) {
-        
-        console.log('>> using', username);
-        dAmn_Client_Username = username;
-        old_login(username, password);
-        
-    };*/
     
     // Hijack the client to connect to a proxy.
     var wsp = new dAmn_WebSocket_Plugin;
