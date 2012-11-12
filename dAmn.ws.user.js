@@ -3,77 +3,12 @@
 // @namespace      botdom.com
 // @description    Make the official client use WebSockets
 // @author         Henry Rapley <photofroggy@gmail.com>
-// @version        0.1.3
+// @version        0.2.4
 // @include        http://chat.deviantart.com/chat/*
 // ==/UserScript==
 
 
 var dAmnWebSocket = function(  ) {
-
-    // Make some magic happen.
-    
-    /**
-     * Change the way the client is initialised, yaaay.
-     */
-    var dAmnWS_Init = function( pluginarea, plugin, logfunc  ) {
-        if (Browser.isIE && !(document.documentMode > 7)) {
-            alert("A newer version of Internet Explorer is required to use deviantART Chat.");
-            return;
-        }
-
-        try{
-            dAmn_Client_LogCallback = logfunc ;
-            
-            dAmn_Client_PluginArea    = dAmn_GetElement(pluginarea);
-            dAmn_Client_PluginArea.style.width  ='0px';
-            dAmn_Client_PluginArea.style.height ='0px';
-            
-            dAmn_Log( 'Browser: ' + navigator.userAgent );
-        
-            if ( !plugin  || plugin == 'default' ) {
-                if (-1 != navigator.userAgent.search('Gecko')) {
-                    dAmn_Plugins = {
-                         begin:                    new dAmn_WebSocket_Plugin()
-                        ,'WebSocket':              new dAmn_Plugin_XPCOM()
-                        ,'Mozilla Extension':      new dAmn_Plugin_Flash()
-                        ,Flash:                    new dAmn_Plugin_Java()
-                    }
-                } else  {
-                    dAmn_Plugins = {     begin:         new dAmn_WebSocket_Plugin()
-                                        ,'WebSocket':   new dAmn_Plugin_Flash()
-                                        ,Flash:         new dAmn_Plugin_Java()
-                                    }
-                }                        
-                dAmn_Log('Defaulting to '+dAmn_Plugins['begin'].name+' plugin');
-            } else {
-                switch( plugin ) {
-                    case 'WebSocket':
-                        dAmn_Plugins = { begin:    new dAmn_WebSocket_Plugin() };
-                    case 'XPCOM':
-                        dAmn_Plugins = { begin:    new dAmn_Plugin_XPCOM() };
-                        break;
-                    case 'Flash':
-                        dAmn_Plugins = { begin:    new dAmn_Plugin_Flash() };
-                        break;
-                    case 'Java':
-                        dAmn_Plugins = { begin:    new dAmn_Plugin_Java() };
-                        break;
-                    default:
-                        throw "invalid plugin";
-                }                                
-                dAmn_Log('Forced to '+dAmn_Plugins['begin'].name+' plugin');
-            }
-            
-            dAmn_Plugin = new dAmn_PluginObj(dAmn_Plugins['begin']);
-            dAmn_Plugin.load();
-            
-        } 
-        catch(e)
-        {
-            alert('dAmn_Init() failed! : ' + dAmn_ExceptionPrint(e));
-        }
-    };
-    
     
     /**
      * WebSocket plugin object.
@@ -94,38 +29,45 @@ var dAmnWebSocket = function(  ) {
          */
         this.doCmd = function( cmd ) {
         
-            if( !cmd || !this.clientObj )
+            if( !cmd )
                 return;
             
             switch( cmd.cmd ) {
                 case 'connect':
                     // connect here...
-                    this.clientObj.sock = new WebSocket('ws://chat.openflock.com:3901/chat/ws');
+                    this.sock = new WebSocket('ws://chat.openflock.com:3901/chat/ws');
                     
-                    this.clientObj.sock.onmessage = function( event ) {
-                        dAmn_DoCommand( 'data', unescape(event.data) );
+                    this.sock.onopen = function( event ) {
+                        dAmn_Plugin.log('WebSocket open');
+                        dAmn_DoCommand( 'connect' );
                     };
                     
-                    this.clientObj.sock.onclose = function( event ) {
+                    this.sock.onmessage = function( event ) {
+                        dAmn_DoCommand( 'data', decodeURIComponent(event.data.split('+').join(' ')) );
+                    };
+                    
+                    this.sock.onclose = function( event ) {
+                        dAmn_Plugin.log('WebSocket closed');
                         dAmn_DoCommand( 'disconnect' );
                     };
                     
                     break;
                 case 'disconnect':
-                    if( this.clientObj.sock == null )
+                    if( this.sock == null )
                         break;
-                    this.clientObj.sock.close();
+                    this.sock.close();
                     break;
                 case 'send':
-                    if( this.clientObj.sock == null )
+                    if( this.sock == null )
                         break;
-                    this.clientObj.sock.send(escape(cmd.arg));
+                    this.sock.send(encodeURIComponent(cmd.arg).split(' ').join('+'));
                     break;
                 case 'ping':
-                    // Send a ping packet...
-                    // Seems redundant...
                     break;
             }
+            
+            dAmn_DoCommand('done');
+            
         
         };
         
@@ -143,13 +85,15 @@ var dAmnWebSocket = function(  ) {
             this.begin_ts = d.getTime();
             
             dAmn_Client_PluginArea.innerHTML = '<div id="'+this.objName+'"></div>';
+            document.dAmnWebSocket = {};
             dAmn_Plugin.getClientObj();
-            this.clientObj.sock = null;
+            this.sock = null;
             
-            this.setTimer( 1 );
-            // Maybe just do tryAccess and then throw errors based on that?
-            // If we can't use WebSockets maybe fall back to the other
-            // transports somehow.
+            if( this.tryAccess() ) {
+                setTimeout(function( ) { dAmn_DoCommand('init', 'init_arg'); }, 1);
+            }
+            
+            this.setTimer(1000);
         }
         
         /**
@@ -170,26 +114,29 @@ var dAmnWebSocket = function(  ) {
          */
         this.timeout = function(  ) {
             
-            var d = new Date();
-            var elapsed = d.getTime() - dAmn_Plugin.begin_ts;
-            if( isNaN(elapsed) )
-                elapsed = 0;
+            dAmn_Plugin.log("WebSocket timeout");
             
-            if( !this.tryAccess() ) {
-                dAmn_Plugin.log("WebSocket timeout");
-                dAmn_Plugin.tryNext('WebSocket unavailable');
-                return;
+            for( var k in dAmn_Plugins ) {
+                if( !dAmn_Plugins.hasOwnProperty(k) )
+                    continue;
+                
+                if( dAmn_Plugins[k].name == 'Flash' ) {
+                    dAmn_Plugin = dAmn_Plugins[k];
+                    break;
+                }
             }
             
-            // If we get here, we are ready to connect.
-            dAmn_DoCommand( 'init', 'init_arg' );
+            dAmn_Client_ReConnect();
         
-        }
+        };
+        
     }
     
-    // Replace the init function.
-    window.dAmn_Init = dAmnWS_Init;
-
+    // Hijack the client to connect to a proxy.
+    var wsp = new dAmn_WebSocket_Plugin;
+    dAmn_Plugin = new dAmn_PluginObj( wsp );
+    dAmn_Plugin.load();
+    dAmn_Client_ReConnect();
 
 };
 
