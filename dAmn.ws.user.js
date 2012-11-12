@@ -3,7 +3,7 @@
 // @namespace      botdom.com
 // @description    Make the official client use WebSockets
 // @author         Henry Rapley <photofroggy@gmail.com>
-// @version        0.2.5
+// @version        0.3.6
 // @include        http://chat.deviantart.com/chat/*
 // ==/UserScript==
 
@@ -35,7 +35,7 @@ var dAmnWebSocket = function(  ) {
             switch( cmd.cmd ) {
                 case 'connect':
                     // connect here...
-                    this.sock = new WebSocket('ws://chat.openflock.com:3901/chat/ws');
+                    this.sock = new WebSocket('ws://chat.openflock.com:3902/chat/ws');
                     
                     this.sock.onopen = function( event ) {
                         dAmn_Plugin.log('Proxy open');
