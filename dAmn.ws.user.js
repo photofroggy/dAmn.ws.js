@@ -3,7 +3,7 @@
 // @namespace      botdom.com
 // @description    Make the official client use WebSockets
 // @author         Henry Rapley <photofroggy@gmail.com>
-// @version        0.3.6
+// @version        1.0.0
 // @include        http://chat.deviantart.com/chat/*
 // ==/UserScript==
 
