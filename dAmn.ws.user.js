@@ -3,22 +3,25 @@
 // @namespace      botdom.com
 // @description    Make the official client use WebSockets
 // @author         Henry Rapley <photofroggy@gmail.com>
-// @version        1.0.0
+// @version        1.0.1
 // @include        http://chat.deviantart.com/chat/*
+// @include        http://chat.deviantart.lan/chat/*
 // ==/UserScript==
 
 
 var dAmnWebSocket = function(  ) {
-    
+
     /**
      * WebSocket plugin object.
      * deviantART's dAmn client uses "Plugin" objects to implement different
      * kinds of transports. As such, this is an object which aims to satisfy
      * the interface expected by the client.
      */
-    var dAmn_WebSocket_Plugin = function() {
+    dAmn_Plugin_WebSocket = function() {
         this.name = 'WebSocket';
         this.objName = 'dAmnWebSocket';
+        this.wsaddress = 'ws://chat.openflock.com:3902/chat/ws';
+        this.connectaddress = 'dAmn@chat.openflock.com';
         
         /**
          * Execute a command on the plugin.
@@ -27,20 +30,24 @@ var dAmnWebSocket = function(  ) {
          * is any additional information that may be required for the command
          * to work.
          */
-        this.doCmd = function( cmd ) {
+        this.doCmd = bind(this, function( cmd ) {
         
             if( !cmd )
                 return;
             
             switch( cmd.cmd ) {
+                case 'init':
+                    dAmn_Plugin.doCmd( 'connect' );
+                    break;
                 case 'connect':
                     // connect here...
-                    this.sock = new WebSocket('ws://chat.openflock.com:3902/chat/ws');
+                    dAmn_Plugin.log('Creating Websocket');
+                    this.sock = new WebSocket(this.wsaddress);
                     
-                    this.sock.onopen = function( event ) {
+                    this.sock.onopen = bind(this, function( event ) {
                         dAmn_Plugin.log('Proxy open');
-                        dAmn_DoCommand( 'connect', 'dAmn@chat.openflock.com' );
-                    };
+                        dAmn_DoCommand( 'connect', this.connectaddress);
+                    });
                     
                     this.sock.onmessage = function( event ) {
                         dAmn_DoCommand( 'data', decodeURIComponent(event.data.split('+').join(' ')) );
@@ -76,9 +83,7 @@ var dAmnWebSocket = function(  ) {
             }
             
             dAmn_DoCommand('done');
-            
-        
-        };
+        });
         
         /**
          * Load the plugin.
@@ -89,7 +94,14 @@ var dAmnWebSocket = function(  ) {
          * client into thinking we are actually using something so silly.
          */
         this.load = function(  ) {
+            if(!(window["WebSocket"])) {
+                dAmn_Plugin.log( 'No Websockets Support' );
+                return false;
+            }
+        
             this.loadCount++;
+            dAmn_Plugin.log( 'Probing' );
+            
             var d = new Date();
             this.begin_ts = d.getTime();
             
@@ -98,9 +110,7 @@ var dAmnWebSocket = function(  ) {
             dAmn_Plugin.getClientObj();
             this.sock = null;
             
-            if( this.tryAccess() ) {
-                setTimeout(function( ) { dAmn_DoCommand('init', 'init_arg'); }, 1);
-            }
+            dAmn_DoCommand('init', 'init_arg');
             
             this.setTimer(1000);
         }
@@ -112,7 +122,7 @@ var dAmnWebSocket = function(  ) {
          */
         this.tryAccess = function(  ) {
             if(window["WebSocket"]) {
-                return true;
+                return document.dAmnWebSocket;
             }
             return false;
         };
@@ -122,33 +132,117 @@ var dAmnWebSocket = function(  ) {
          * WebSockets. If we can, then tell the client we are ready to connect.
          */
         this.timeout = function(  ) {
-            
+            if(!(window["WebSocket"])) {
+                dAmn_Plugin.tryNext('Extension not supported');
+                return false;
+            }
+
             dAmn_Plugin.log("WebSocket timeout");
-            
-            for( var k in dAmn_Plugins ) {
-                if( !dAmn_Plugins.hasOwnProperty(k) )
-                    continue;
-                
-                if( dAmn_Plugins[k].name == 'Flash' ) {
-                    dAmn_Plugin = dAmn_Plugins[k];
-                    break;
+
+            if (dAmn_Plugin.clientObj ) {
+                try {
+                    dAmn_DoCommand('init', 'init_arg');
+                } catch(e) {
+                    dAmn_Plugin.tryNext("Extension failed: " + e);
                 }
+                return;
             }
             
-            dAmn_Client_ReConnect();
+            if(!dAmn_Plugin.clientObj)
+            {
+                if( dAmn_Plugin.state != 'noclient' )
+                {
+                    dAmn_Plugin.state = 'noclient'
+                    // wait
+                    dAmn_Plugin.setTimer( 100 );
+                } else {
+                    dAmn_Plugin.tryNext('Extension not installed');
+                }
+            } else {
+                dAmn_Plugin.tryNext("Extension not responding");
+            }
         
         };
         
     }
     
-    // Hijack the client to connect to a proxy.
-    var wsp = new dAmn_WebSocket_Plugin;
-    dAmn_Plugin = new dAmn_PluginObj( wsp );
-    dAmn_Plugin.load();
-    dAmn_Client_ReConnect();
+    /**
+     * Inject the WebSocket plugin into the dAmn Init script
+     * This function is idential to the original except it adds
+     *  the WebSocket to the plugin list
+     */
+    dAmn_Init = function( pluginarea, plugin, logfunc  )
+    {
+        if (Browser.isIE && !(document.documentMode > 7)) {
+            alert("A newer version of Internet Explorer is required to use deviantART Chat.");
+            return;
+        }
 
+        try{
+            dAmn_Client_LogCallback = logfunc ;
+            
+            dAmn_Client_PluginArea    = dAmn_GetElement(pluginarea);
+            dAmn_Client_PluginArea.style.width  ='0px';
+            dAmn_Client_PluginArea.style.height ='0px';
+            
+            dAmn_Log( 'Browser: ' + navigator.userAgent );
+        
+            if ( !plugin  || plugin == 'default' ) {
+                if (-1 != navigator.userAgent.search('Gecko')) {
+                    dAmn_Plugins = {
+                         begin:                   new dAmn_Plugin_WebSocket()
+                        ,'WebSocket':             new dAmn_Plugin_XPCOM()
+                        ,'Mozilla Extension':     new dAmn_Plugin_Flash()
+                        ,Flash:                   new dAmn_Plugin_Java()
+                    }
+                } else  {
+                    dAmn_Plugins = {     begin:       new dAmn_Plugin_WebSocket()
+                                        ,'WebSocket':   new dAmn_Plugin_Flash()
+                                        ,Flash:       new dAmn_Plugin_Java()
+                                    }
+                }                        
+                dAmn_Log('Defaulting to '+dAmn_Plugins['begin'].name+' plugin');
+            } else {
+                switch( plugin ) {
+                    case 'WebSocket':
+                        dAmn_Plugins = { begin:    new dAmn_Plugin_WebSocket() };
+                        break;
+                    case 'XPCOM':
+                        dAmn_Plugins = { begin:    new dAmn_Plugin_XPCOM() };
+                        break;
+                    case 'Flash':
+                        dAmn_Plugins = { begin:    new dAmn_Plugin_Flash() };
+                        break;
+                    case 'Java':
+                        dAmn_Plugins = { begin:    new dAmn_Plugin_Java() };
+                        break;
+                    default:
+                        throw "invalid plugin";
+                }                                
+                dAmn_Log('Forced to '+dAmn_Plugins['begin'].name+' plugin');
+            }
+            
+            dAmn_Plugin = new dAmn_PluginObj(dAmn_Plugins['begin']);
+            dAmn_Plugin.load();
+            
+        } 
+        catch(e)
+        {
+            alert('dAmn_Init() failed! : ' + dAmn_ExceptionPrint(e));
+        }
+    }    
+
+    
+    /**
+     * Hijack the plugin in Chrome only, cause Chrome loads way after the Dom is loaded
+     * While Firefox's Greasemonkey injects the script into the page at the right time
+     */
+    if (Browser.isChrome) {
+        dAmn_Plugin = new dAmn_PluginObj(new dAmn_Plugin_WebSocket());
+        dAmn_Plugin.load();
+        dAmn_Client_ReConnect();
+    }
 };
-
 
 var dwsel = document.createElement("script");
 dwsel.id = "damnwebsocket"
