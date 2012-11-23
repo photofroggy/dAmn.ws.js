@@ -50,13 +50,7 @@ var dAmnWebSocket = function(  ) {
                     });
                     
                     this.sock.onmessage = function( event ) {
-                        try {
                         dAmn_DoCommand( 'data', unescape(event.data.split('+').join(' ')) );
-                        }
-                        catch (e)
-                        {
-                            console.log(e, event.data.split('+').join(' '))
-                        }
                     };
                     
                     this.sock.onclose = function( event ) {
