@@ -3,7 +3,7 @@
 // @namespace      botdom.com
 // @description    Make the official client use WebSockets
 // @author         Henry Rapley <photofroggy@gmail.com>
-// @version        1.1.5
+// @version        1.1.6
 // @include        http://chat.deviantart.com/chat/*
 // @include        http://chat.deviantart.lan/chat/*
 // ==/UserScript==
@@ -22,6 +22,7 @@ var dAmnWebSocket = function(  ) {
         this.objName = 'dAmnWebSocket';
         this.wsaddress = 'ws://chat.openflock.com:3902/chat/ws';
         this.connectaddress = 'dAmn@chat.openflock.com';
+        dAmn_Client_Agent+= ' (dAmn.ws/1.1.6)';
         
         /**
          * Execute a command on the plugin.
