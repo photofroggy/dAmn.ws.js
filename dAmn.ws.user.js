@@ -3,7 +3,7 @@
 // @namespace      botdom.com
 // @description    Make the official client use WebSockets
 // @author         Henry Rapley <photofroggy@gmail.com>
-// @version        1.1.4
+// @version        1.1.5
 // @include        http://chat.deviantart.com/chat/*
 // @include        http://chat.deviantart.lan/chat/*
 // ==/UserScript==
@@ -50,7 +50,7 @@ var dAmnWebSocket = function(  ) {
                     });
                     
                     this.sock.onmessage = function( event ) {
-                        dAmn_DoCommand( 'data', event.data );
+                        dAmn_DoCommand( 'data', unescape(event.data.split('+').join(' ')) );
                     };
                     
                     this.sock.onclose = function( event ) {
@@ -75,7 +75,7 @@ var dAmnWebSocket = function(  ) {
                             return;
                         }
                     }
-                    this.sock.send(cmd.arg);
+                    this.sock.send(escape(cmd.arg).split('+').join('%2B'));
                     break;
                 case 'ping':
                     break;
