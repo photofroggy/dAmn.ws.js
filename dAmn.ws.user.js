@@ -50,7 +50,7 @@ var dAmnWebSocket = function(  ) {
                     });
                     
                     this.sock.onmessage = function( event ) {
-                        dAmn_DoCommand( 'data', unescape(event.data.split('+').join(' ')) );
+                        dAmn_DoCommand( 'data', event.data );
                     };
                     
                     this.sock.onclose = function( event ) {
@@ -75,7 +75,7 @@ var dAmnWebSocket = function(  ) {
                             return;
                         }
                     }
-                    this.sock.send(escape(cmd.arg).split('+').join('%2B'));
+                    this.sock.send(cmd.arg);
                     break;
                 case 'ping':
                     break;
