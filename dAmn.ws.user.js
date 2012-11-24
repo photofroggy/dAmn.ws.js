@@ -3,7 +3,7 @@
 // @namespace      botdom.com
 // @description    Make the official client use WebSockets
 // @author         Henry Rapley <photofroggy@gmail.com>
-// @version        1.0.3
+// @version        1.1.4
 // @include        http://chat.deviantart.com/chat/*
 // @include        http://chat.deviantart.lan/chat/*
 // ==/UserScript==
@@ -135,9 +135,9 @@ var dAmnWebSocket = function(  ) {
                 dAmn_Plugin.tryNext('Extension not supported');
                 return false;
             }
-
+            
             dAmn_Plugin.log("WebSocket timeout");
-
+            
             if (dAmn_Plugin.clientObj ) {
                 try {
                     dAmn_DoCommand('init', 'init_arg');
@@ -168,7 +168,7 @@ var dAmnWebSocket = function(  ) {
     /**
      * Inject the WebSocket plugin into the dAmn Init script
      * This function is idential to the original except it adds
-     *  the WebSocket to the plugin list
+     * the WebSocket to the plugin list
      */
     dAmn_Init = function( pluginarea, plugin, logfunc  )
     {
@@ -176,7 +176,7 @@ var dAmnWebSocket = function(  ) {
             alert("A newer version of Internet Explorer is required to use deviantART Chat.");
             return;
         }
-
+        
         try{
             dAmn_Client_LogCallback = logfunc ;
             
@@ -229,7 +229,7 @@ var dAmnWebSocket = function(  ) {
         {
             alert('dAmn_Init() failed! : ' + dAmn_ExceptionPrint(e));
         }
-    }    
+    }
 
     
     /**
